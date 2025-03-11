@@ -2,107 +2,86 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from statsmodels.tsa.seasonal import seasonal_decompose
 
-# Load data
-url = "https://raw.githubusercontent.com/shakir91/Proyek_Analisis_Data_LaskarAI/refs/heads/main/data/day.csv"
-df = pd.read_csv(url)
-df['dteday'] = pd.to_datetime(df['dteday'])
-df = df.sort_values('dteday')
+# Load both datasets
+daily_url = "https://raw.githubusercontent.com/shakir91/Proyek_Analisis_Data_LaskarAI/main/data/day.csv"
+hourly_url = "https://raw.githubusercontent.com/shakir91/Proyek_Analisis_Data_LaskarAI/main/data/hour.csv"
 
-# 1. Interactive Time Series Plot
-fig1 = px.line(df, x='dteday', y='cnt', 
-              labels={'cnt': 'Total Rentals', 'dteday': 'Date'},
-              title='Daily Bike Rentals (2011-2012)',
-              template='plotly_white')
-fig1.update_layout(hovermode="x unified")
-fig1.update_traces(line_color='#2ca02c', hovertemplate='Date: %{x}<br>Rentals: %{y}')
-fig1.update_xaxes(rangeslider_visible=True)
-fig1.show()
+daily_df = pd.read_csv(daily_url)
+hourly_df = pd.read_csv(hourly_url)
 
-# 2. Interactive Trend Analysis
-fig2 = go.Figure()
-fig2.add_trace(go.Scatter(x=df['dteday'], y=df['cnt'],
-                         name='Daily',
-                         line=dict(color='#1f77b4', width=1),
-                         opacity=0.3))
-fig2.add_trace(go.Scatter(x=df['dteday'], y=df['cnt'].rolling(7).mean(),
-                         name='7D Moving Avg',
-                         line=dict(color='#ff7f0e', width=2)))
-fig2.add_trace(go.Scatter(x=df['dteday'], y=df['cnt'].rolling(30).mean(),
-                         name='30D Moving Avg',
-                         line=dict(color='#d62728', width=2)))
+# Convert dates and prepare for merging
+daily_df['dteday'] = pd.to_datetime(daily_df['dteday'])
+hourly_df['dteday'] = pd.to_datetime(hourly_df['dteday'])
 
-fig2.update_layout(title='Bike Rental Trends with Moving Averages',
-                 xaxis_title='Date',
-                 yaxis_title='Total Rentals',
-                 template='plotly_white',
-                 hovermode="x unified",
-                 xaxis=dict(rangeslider=dict(visible=True)))
-fig2.show()
+# Create a merged dataframe
+merged_df = pd.merge(hourly_df, daily_df, on='dteday', suffixes=('_hourly', '_daily'))
 
-# 3. Interactive Seasonal Decomposition
-result = seasonal_decompose(df.set_index('dteday')['cnt'], model='multiplicative', period=365)
+# 1. Daily vs Hourly Totals Validation
+# Check if hourly sums match daily totals
+validation_df = merged_df.groupby('dteday').agg(
+    hourly_total=('cnt_hourly', 'sum'),
+    daily_total=('cnt_daily', 'first')
+).reset_index()
 
-fig3 = make_subplots(rows=4, cols=1, shared_xaxes=True,
-                    subplot_titles=("Observed", "Trend", "Seasonal", "Residual"))
+fig = px.scatter(validation_df, x='daily_total', y='hourly_total', 
+                title='Validation: Daily vs Summed Hourly Rentals',
+                labels={'daily_total': 'Daily Reported Total', 
+                        'hourly_total': 'Hourly Summed Total'})
+fig.add_trace(go.Scatter(x=[0, 10000], y=[0, 10000], 
+             mode='lines', name='Perfect Match'))
+fig.show()
 
-fig3.add_trace(go.Scatter(x=df['dteday'], y=df['cnt'],
-                         name='Observed',
-                         line=dict(color='#2ca02c')),
-              row=1, col=1)
+# 2. Hourly Contribution to Daily Demand
+merged_df['hourly_contribution'] = merged_df['cnt_hourly'] / merged_df['cnt_daily']
 
-fig3.add_trace(go.Scatter(x=result.trend.index, y=result.trend,
-                         name='Trend',
-                         line=dict(color='#d62728')),
-              row=2, col=1)
+fig = px.box(merged_df, x='hr', y='hourly_contribution', color='workingday_hourly',
+            labels={'hr': 'Hour of Day', 
+                    'hourly_contribution': 'Proportion of Daily Total',
+                    'workingday_hourly': 'Working Day'},
+            title='Hourly Contribution to Daily Demand')
+fig.show()
 
-fig3.add_trace(go.Scatter(x=result.seasonal.index, y=result.seasonal,
-                         name='Seasonal',
-                         line=dict(color='#9467bd')),
-              row=3, col=1)
+# 3. Daily-Hourly Pattern Explorer
+fig = make_subplots(rows=2, cols=1, shared_xaxes=True)
 
-fig3.add_trace(go.Scatter(x=result.resid.index, y=result.resid,
-                         name='Residual',
-                         line=dict(color='#8c564b')),
-              row=4, col=1)
+# Daily trend
+fig.add_trace(go.Scatter(x=daily_df['dteday'], y=daily_df['cnt'],
+                        name='Daily Total', line=dict(color='blue')),
+             row=1, col=1)
 
-fig3.update_layout(height=800, title_text="Seasonal Decomposition of Bike Rentals",
-                 template='plotly_white', showlegend=False)
-fig3.show()
+# Hourly heatmap
+hourly_pivot = merged_df.pivot_table(index='dteday', columns='hr', values='cnt_hourly')
+fig.add_trace(go.Heatmap(z=hourly_pivot.values.T,
+                        x=hourly_pivot.index,
+                        y=hourly_pivot.columns,
+                        colorscale='Viridis',
+                        colorbar=dict(title='Hourly Rentals')),
+             row=2, col=1)
 
-# 4. Interactive Year-over-Year Comparison
-monthly_avg = df.groupby([df['dteday'].dt.year, df['dteday'].dt.month])['cnt'].mean().unstack(0)
-monthly_avg.columns = ['2011', '2012']
-monthly_avg = monthly_avg.reset_index().melt(id_vars='dteday', var_name='Year', value_name='Average Rentals')
+fig.update_layout(height=600, title_text='Combined Daily Trend & Hourly Patterns')
+fig.show()
 
-fig4 = px.line(monthly_avg, x='dteday', y='Average Rentals', color='Year',
-              labels={'dteday': 'Month'},
-              title='Monthly Rental Patterns: 2011 vs 2012',
-              template='plotly_white',
-              color_discrete_sequence=['#1f77b4', '#ff7f0e'],
-              markers=True)
+# 4. Interactive Cross-Filtering
+fig = px.scatter(merged_df, x='temp_daily', y='cnt_hourly', 
+                animation_frame='hr',
+                color='weathersit_daily',
+                size='cnt_hourly',
+                range_x=[0,1], range_y=[0,1000],
+                labels={'temp_daily': 'Daily Temperature',
+                        'cnt_hourly': 'Hourly Rentals',
+                        'weathersit_daily': 'Weather Condition'},
+                title='Hourly Rentals vs Daily Temperature (Animation by Hour)')
+fig.show()
 
-fig4.update_xaxes(tickvals=list(range(1,13)), 
-                 ticktext=['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'])
-fig4.update_layout(hovermode="x unified",
-                 xaxis_title="Month",
-                 yaxis_title="Average Rentals")
-fig4.show()
+# 5. Correlation Matrix (Daily vs Hourly Features)
+corr_matrix = merged_df[['cnt_daily', 'cnt_hourly', 'temp_daily',
+                        'hum_daily', 'windspeed_daily', 'hr',
+                        'workingday_hourly']].corr()
 
-# 5. Interactive Boxplot
-df['month_name'] = df['dteday'].dt.month_name()
-fig5 = px.box(df, x='month_name', y='cnt', 
-             title='Monthly Distribution of Bike Rentals',
-             labels={'cnt': 'Total Rentals', 'month_name': 'Month'},
-             category_orders={'month_name': ['January', 'February', 'March', 'April',
-                                            'May', 'June', 'July', 'August',
-                                            'September', 'October', 'November', 'December']},
-             color_discrete_sequence=['#636EFA'],
-             template='plotly_white')
-
-fig5.update_traces(hovertemplate='Month: %{x}<br>Max: %{max}<br>Q3: %{q3}<br>Median: %{median}<br>Q1: %{q1}<br>Min: %{min}')
-fig5.update_layout(showlegend=False,
-                 xaxis=dict(tickangle=45))
-fig5.show()
+fig = px.imshow(corr_matrix, 
+               x=corr_matrix.columns,
+               y=corr_matrix.columns,
+               color_continuous_scale='RdBu',
+               title='Feature Correlation Matrix')
+fig.show()
