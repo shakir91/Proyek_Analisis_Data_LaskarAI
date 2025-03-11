@@ -1,1 +1,5 @@
-temp
+pandas==2.2.3
+plotly==6.0.0
+statsmodels==0.14.4
+matplotlib==3.9.4
+
