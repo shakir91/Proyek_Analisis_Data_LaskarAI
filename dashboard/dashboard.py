@@ -18,7 +18,10 @@ hourly_df['dteday'] = pd.to_datetime(hourly_df['dteday'])
 # Create a merged dataframe
 merged_df = pd.merge(hourly_df, daily_df, on='dteday', suffixes=('_hourly', '_daily'))
 
-# 1. Daily vs Hourly Totals Validation
+#Judul
+st.title("Bike Sharing Data Analytics")
+
+ st.subheader("Daily vs Hourly Totals Validation")
 # Check if hourly sums match daily totals
 validation_df = merged_df.groupby('dteday').agg(
     hourly_total=('cnt_hourly', 'sum'),
@@ -33,7 +36,7 @@ fig.add_trace(go.Scatter(x=[0, 10000], y=[0, 10000],
              mode='lines', name='Perfect Match'))
 fig.show()
 
-# 2. Hourly Contribution to Daily Demand
+st.subheader("Hourly Contribution to Daily Demand")
 merged_df['hourly_contribution'] = merged_df['cnt_hourly'] / merged_df['cnt_daily']
 
 fig = px.box(merged_df, x='hr', y='hourly_contribution', color='workingday_hourly',
@@ -43,7 +46,7 @@ fig = px.box(merged_df, x='hr', y='hourly_contribution', color='workingday_hourl
             title='Hourly Contribution to Daily Demand')
 fig.show()
 
-# 3. Daily-Hourly Pattern Explorer
+st.subheader("Daily-Hourly Pattern Explorer")
 fig = make_subplots(rows=2, cols=1, shared_xaxes=True)
 
 # Daily trend
@@ -63,7 +66,7 @@ fig.add_trace(go.Heatmap(z=hourly_pivot.values.T,
 fig.update_layout(height=600, title_text='Combined Daily Trend & Hourly Patterns')
 fig.show()
 
-# 4. Interactive Cross-Filtering
+st.subheader("Interactive Cross-Filtering")
 fig = px.scatter(merged_df, x='temp_daily', y='cnt_hourly', 
                 animation_frame='hr',
                 color='weathersit_daily',
@@ -75,7 +78,7 @@ fig = px.scatter(merged_df, x='temp_daily', y='cnt_hourly',
                 title='Hourly Rentals vs Daily Temperature (Animation by Hour)')
 fig.show()
 
-# 5. Correlation Matrix (Daily vs Hourly Features)
+st.subheader("Correlation Matrix (Daily vs Hourly Features)")
 corr_matrix = merged_df[['cnt_daily', 'cnt_hourly', 'temp_daily',
                         'hum_daily', 'windspeed_daily', 'hr',
                         'workingday_hourly']].corr()
