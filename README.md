@@ -13,7 +13,7 @@ mkdir laskarAI_proyek_akhir_analis_data
 cd laskarAI_proyek_akhir_analis_data
 pip install numpy pandas scipy matplotlib seaborn jupyter
 ```
-## Run steamlit app
+## Run streamlit app
 ```
 streamlit run dashboard.py
 ```
