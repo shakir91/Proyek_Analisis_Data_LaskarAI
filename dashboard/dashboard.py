@@ -21,7 +21,7 @@ merged_df = pd.merge(hourly_df, daily_df, on='dteday', suffixes=('_hourly', '_da
 #Judul
 st.title("Bike Sharing Data Analytics")
 
- st.subheader("Daily vs Hourly Totals Validation")
+st.subheader("Daily vs Hourly Totals Validation")
 # Check if hourly sums match daily totals
 validation_df = merged_df.groupby('dteday').agg(
     hourly_total=('cnt_hourly', 'sum'),
