@@ -9,7 +9,7 @@ import streamlit as st
 hourly_url = "https://raw.githubusercontent.com/shakir91/Proyek_Analisis_Data_LaskarAI/main/data/hour.csv"
 hour_df = pd.read_csv(hourly_url)
 
-hourly_avg = hour_df.groupby('hour')['cnt'].mean()
+hourly_avg = hour_df.groupby('hr')['cnt'].mean()
 user_types = hour_df.groupby('hr')[['casual', 'registered']].mean()
 weekday_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 heatmap_data = hour_df.groupby(['weekday', 'hour'])['cnt'].mean().unstack()
