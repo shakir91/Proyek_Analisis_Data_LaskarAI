@@ -6,6 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+hourly_avg = hour_df.groupby('hour')['cnt'].mean()
 plt.figure(figsize=(12, 6))
 sns.lineplot(x=hourly_avg.index, y=hourly_avg.values, color='#2ca02c')
 plt.title('Average Hourly Rentals Pattern', fontsize=14)
