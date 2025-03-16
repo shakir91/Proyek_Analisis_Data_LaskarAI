@@ -1,37 +1,66 @@
+import streamlit as st
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
-import streamlit as st
 
-hourly_url = "https://raw.githubusercontent.com/shakir91/Proyek_Analisis_Data_LaskarAI/main/data/hour.csv"
-hour_df = pd.read_csv(hourly_url)
+# Load dataset
+@st.cache_data
+def load_data():
+    url = "https://raw.githubusercontent.com/shakir91/Proyek_Analisis_Data_LaskarAI/main/data/hour.csv"
+    df = pd.read_csv(url)
+    
+    # Data preprocessing (replicate from notebook)
+    df['dteday'] = pd.to_datetime(df['dteday'])
+    df['datetime'] = df['dteday'] + pd.to_timedelta(df['hr'], unit='h')
+    df['hour'] = df['datetime'].dt.hour
+    df['weekday'] = df['datetime'].dt.day_name()
+    df['season'] = df['season'].map({1: 'Spring', 2: 'Summer', 3: 'Fall', 4: 'Winter'})
+    df['weathersit'] = df['weathersit'].map({1: 'Clear', 2: 'Mist', 3: 'Light Rain', 4: 'Heavy Rain'})
+    
+    return df
 
-hourly_avg = hour_df.groupby('hr')['cnt'].mean()
-user_types = hour_df.groupby('hr')[['casual', 'registered']].mean()
-weekday_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-heatmap_data = hour_df.groupby(['weekday', 'hr'])['cnt'].mean().unstack()
-heatmap_data.describe(include=("all"))
+df = load_data()
 
-#Data Pre-Processing
-hour_df['dteday'] = pd.to_datetime(hour_df['dteday'])
-hour_df['datetime'] = hour_df['dteday'] + pd.to_timedelta(hour_df['hr'], unit='h')
-hour_df['hour'] = hour_df['datetime'].dt.hour
-hour_df['weekday'] = hour_df['datetime'].dt.day_name()
-hour_df['season'] = hour_df['season'].map({1: 'Spring', 2: 'Summer', 3: 'Fall', 4: 'Winter'})
-hour_df['weathersit'] = hour_df['weathersit'].map({1: 'Clear', 2: 'Mist', 3: 'Light Rain', 4: 'Heavy Rain'})
-hourly_avg = hour_df.groupby('hr')['cnt'].mean()
+# Streamlit app
+st.title('Bike Sharing Analysis Dashboard')
 
-plt.figure(figsize=(12, 6))
-sns.lineplot(x=hourly_avg.index, y=hourly_avg.values, color='#2ca02c')
-plt.title('Average Hourly Rentals Pattern', fontsize=14)
-plt.xlabel('Hour of Day')
-plt.ylabel('Average Rentals')
-plt.xticks(range(0, 24))
-plt.grid(True, alpha=0.3)
-plt.show()
+# Dataset preview
+with st.expander("View Raw Data"):
+    st.write(df.describe())
+    st.write(df.head())
 
+# Main analysis tabs
+tab1, tab2, tab3 = st.tabs(["Weather Impact", "Yearly Trends", "Workday vs Holiday"])
 
+with tab1:
+    st.header("Impact of Weather Conditions")
+    weather_counts = df.groupby('weathersit')['cnt'].mean().reset_index()
+    
+    fig = px.bar(weather_counts, x='weathersit', y='cnt', 
+                 labels={'cnt': 'Average Rentals', 'weathersit': 'Weather Condition'},
+                 color='weathersit')
+    st.plotly_chart(fig)
 
+with tab2:
+    st.header("Yearly Growth Trends")
+    
+    # Convert yr (0=2011, 1=2012)
+    yearly = df.groupby('yr')['cnt'].sum().reset_index()
+    yearly['year'] = yearly['yr'].map({0: 2011, 1: 2012})
+    
+    fig = px.line(yearly, x='year', y='cnt', markers=True,
+                  labels={'cnt': 'Total Rentals', 'year': 'Year'},
+                  title='Total Rentals by Year')
+    fig.update_layout(yaxis_range=[0, yearly['cnt'].max()*1.1])
+    st.plotly_chart(fig)
+
+with tab3:
+    st.header("Workday vs Holiday Comparison")
+    
+    day_comparison = df.groupby(['workingday', 'hr'])['cnt'].mean().reset_index()
+    day_comparison['day_type'] = day_comparison['workingday'].map({1: 'Working Day', 0: 'Holiday'})
+    
+    fig = px.line(day_comparison, x='hr', y='cnt', color='day_type',
+                  labels={'cnt': 'Average Rentals', 'hr': 'Hour of Day'},
+                  title='Hourly Rental Patterns')
+    st.plotly_chart(fig)
