@@ -1,19 +1,17 @@
-# Dashboard Proyek Akhir Analisis Data Laskar AI  ✨
-
 ## Setup Environment - Anaconda
 ```
-create --name laskarai-analis-data python=3.9
+conda create --name laskarai-analis-data python=3.9
 conda activate laskarai-analis-data
 pip install -r requirements.txt
 ```
-
 ## Setup Environment - Shell/Terminal
 ```
-mkdir laskarAI_proyek_akhir_analis_data
-cd laskarAI_proyek_akhir_analis_data
-pip install numpy pandas scipy matplotlib seaborn jupyter
+mkdir Proyek_Analisis_Data_LaskarAI-main
+cd Proyek_Analisis_Data_LaskarAI-main
+pip install -r requirements.txt
 ```
-## Run streamlit app
+## Run steamlit app
 ```
+cd Proyek_Analisis_Data_LaskarAI-main\dashboard
 streamlit run dashboard.py
 ```
