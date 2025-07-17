@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 import plotly.express as px
 
 # --- Load Data ---
@@ -40,11 +42,27 @@ fig_user = px.line(user_hourly, x='hr', y=['registered', 'casual'], labels={'val
 st.plotly_chart(fig_user, use_container_width=True)
 
 # --- Weekly Rental Patterns ---
-st.subheader("📆 Weekly Rental Patterns")
-weekly = filtered_df.groupby('weekday')['cnt'].sum().reset_index()
-fig_week = px.bar(weekly, x='weekday', y='cnt', title='Total Rentals by Weekday', labels={'cnt': 'Total Rentals'})
-st.plotly_chart(fig_week, use_container_width=True)
+#st.subheader("📆 Weekly Rental Patterns")
+#weekly = filtered_df.groupby('weekday')['cnt'].sum().reset_index()
+#fig_week = px.bar(weekly, x='weekday', y='cnt', title='Total Rentals by Weekday', labels={'cnt': 'Total Rentals'})
+#st.plotly_chart(fig_week, use_container_width=True)
+st.subheader("📆 Weekly Rental Heatmap (Hour vs Weekday)")
 
+# Ensure weekday order
+weekday_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+filtered_df['weekday'] = pd.Categorical(filtered_df['weekday'], categories=weekday_order, ordered=True)
+
+# Pivot table: rows = weekday, columns = hour, values = total rentals
+heatmap_data = filtered_df.pivot_table(values='cnt', index='weekday', columns='hr', aggfunc='sum').fillna(0)
+
+# Plot
+fig, ax = plt.subplots(figsize=(12, 5))
+sns.heatmap(heatmap_data, cmap='YlGnBu', ax=ax)
+ax.set_xlabel("Hour of Day")
+ax.set_ylabel("Weekday")
+ax.set_title("Heatmap of Bike Rentals by Hour and Weekday")
+
+st.pyplot(fig)
 # --- Raw Data ---
-with st.expander("🧾 View Raw Data"):
-    st.dataframe(filtered_df.head(100))
+#with st.expander("🧾 View Raw Data"):
+#    st.dataframe(filtered_df.head(100))
